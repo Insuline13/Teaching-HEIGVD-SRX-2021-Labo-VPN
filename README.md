@@ -30,8 +30,8 @@ Dans ce travail de laboratoire, vous allez configurer des routeurs Cisco émulé
 -	Capture Sniffer avec filtres précis sur la communication à épier
 -	Activation du mode « debug » pour certaines fonctions du routeur
 -	Observation des protocoles IPSec
- 
- 
+
+
 ## Matériel
 
 Le logiciel d'émulation à utiliser c'est eve-ng (vous l'avez déjà employé). Vous trouverez ici un [guide très condensé](files/Manuel_EVE-NG.pdf) pour l'utilisation et l'installation de eve-ng.
@@ -108,6 +108,8 @@ Un « protocol » différent de `up` indique la plupart du temps que l’interfa
 
 **Réponse :**  
 
+Pas de problèmes à signaler.
+
 ---
 
 
@@ -145,6 +147,8 @@ Pour votre topologie il est utile de contrôler la connectivité entre :
 
 **Réponse :**  
 
+Tous nos pings ont passé. Il a juste fallu attribuer une adresse IP à la station VPC avec la commande `ip dhcp`.
+
 ---
 
 - Activation de « debug » et analyse des messages ping.
@@ -167,6 +171,14 @@ Pour déclencher et pratiquer les captures vous allez « pinger » votre routeur
 ---
 
 **Screenshots :**  
+
+Capture sur Wireshark de la sortie du routeur R2 vers internet:
+
+![](images/question3.png)
+
+Capture des messages de R1 avec debug ip icmp:
+
+![image-20210527143831419](images/image-20210527143831419.png)
 
 ---
 
@@ -239,6 +251,19 @@ Vous pouvez consulter l’état de votre configuration IKE avec les commandes su
 
 **Réponse :**  
 
+Routeur R1:
+
+![](images/question4.1.png)
+
+Routeur R2:
+
+![](images/question4.2.png)
+
+- Encryption algorithm: Bien que l'algorithme de chiffrement Triple key DES ait une priorité supérieure sur le routeur R2, c'est la politique de priorité inférieure utilisant l'algorithme de chiffrement AES qui sera appliquée car il est disponible sur les deux routeurs.
+- Hash algorithm: L'algorithme de hash utilisé est SHA-1. L'algorithme de hash appliqué sur la politique de priorité supérieure est MD5 qui est actuellement cassé.
+- Authentication method: On utilise la méthode de clé partagée.
+- Diffie-Hellman group: Les groupes Diffie-Hellman appliqué sont le 2 et le 5. La taille de la clé utilisée dans le processus d'échange de clé n'est pas suffisante et il serait préférable d'avoir au moins le groupe 14 avec une taille de 2048 bits.
+
 ---
 
 
@@ -247,6 +272,12 @@ Vous pouvez consulter l’état de votre configuration IKE avec les commandes su
 ---
 
 **Réponse :**  
+
+![image-20210527152623683](images/image-20210527152623683.png)
+
+![image-20210527152643556](images/image-20210527152643556.png)
+
+Cette commande nous permet de voir le secret partagé qui est `cisco-1`.
 
 ---
 
@@ -341,6 +372,14 @@ Pensez à démarrer votre sniffer sur la sortie du routeur R2 vers internet avan
 
 **Réponse :**  
 
+Lors de la configuration d'IPsec, nous avons eu des warnings. Les valeurs lifetime du poids et du temps étaient trop faibles par rapport aux valeurs recommandées. 
+
+Après la configuration d'IPsec, les pings sont transmis par le protocole ESP d'IPsec, permettant un transport confidentiel, authentique et intègre.
+
+![image-20210527155002019](images/image-20210527155002019.png)
+
+
+
 ---
 
 **Question 7: Reportez dans votre rapport une petite explication concernant les différents « timers » utilisés par IKE et IPsec dans cet exercice (recherche Web). :**
@@ -348,6 +387,16 @@ Pensez à démarrer votre sniffer sur la sortie du routeur R2 vers internet avan
 ---
 
 **Réponse :**  
+
+IKE: 
+
+- keepalive: envoie des paquets keepalive pour vérifier que les pairs soient toujours actifs. Ainsi `crypto isakmp keepalive 30 3` vérifie au plus 3 fois à intervalle de 30 secondes s'ils sont toujours actifs.
+- lifetime: spécifie la durée de vie d'une SA. Ainsi `lifetime 1800` renouvelle les SA toutes les 30 minutes.
+
+IPsec:
+
+- idle-time: permet de détecter des pairs inactifs et de supprimer leur SA associée. Ainsi  `set security-association idle-time 900` supprime les pairs s'ils sont inactifs depuis 15 minutes et supprime les SA.
+- lifetime:  permet de renouveler  les SA. Ainsi `crypto ipsec security-association lifetime seconds 300` renouvèle les SA toutes les 5 minutes.
 
 ---
 
@@ -363,6 +412,10 @@ En vous appuyant sur les notions vues en cours et vos observations en laboratoir
 
 **Réponse :**  
 
+On utilise le protocole IKE pour permettre l'échange de clés Diffie-Hellman dans le but de mettre en place un secret partagé pour authentifier les deux extrémités d'un tunnel sécurisé.
+
+On utilise le protocole ESP pour transférer les données. Il a l'avantage de garantir également la confidentialité.
+
 ---
 
 
@@ -371,6 +424,8 @@ En vous appuyant sur les notions vues en cours et vos observations en laboratoir
 ---
 
 **Réponse :**  
+
+On utilise le mode tunnel.
 
 ---
 
@@ -381,8 +436,9 @@ En vous appuyant sur les notions vues en cours et vos observations en laboratoir
 
 **Réponse :**  
 
----
+L'entête IP originale, les données et l'ESP trailer sont chiffrés. Ensuite, IPsec encapsule ce paquet chiffré et ajoute une nouvelle entête IP avant de le transmettre sur le tunnel. L'algorithme de chiffrement utilisé est AES 192 bits.
 
+---
 
 **Question 11: Expliquez quelles sont les parties du paquet qui sont authentifiées. Donnez l’algorithme cryptographique correspondant.**
 
@@ -390,8 +446,9 @@ En vous appuyant sur les notions vues en cours et vos observations en laboratoir
 
 **Réponse :**  
 
----
+L'ESP header, l'entête IP originale, les données et l'ESP trailer sont authentifiés. L'algorithme cryptographique utilisé est HMAC avec SHA-1.
 
+---
 
 **Question 12: Expliquez quelles sont les parties du paquet qui sont protégées en intégrité. Donnez l’algorithme cryptographique correspondant.**
 
@@ -399,4 +456,7 @@ En vous appuyant sur les notions vues en cours et vos observations en laboratoir
 
 **Réponse :**  
 
+Les parties authentifiées (cf. question précédente) permettront au récepteur d'assurer que la sécurité des données a été respectée. Par conséquent, l'algorithme cryptographique utilisé est aussi HMAC avec SHA-1.
+
 ---
+
